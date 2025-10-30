@@ -12,6 +12,23 @@ class LruNode<T extends GetKey> {
     this.next = null;
     this.prev = null;
   }
+
+  public static withPrevAndNext<T extends GetKey>(
+    value: T,
+    prev: LruNode<T>,
+    next: LruNode<T>
+  ) {
+    const node = new LruNode<T>(value);
+    node.prev = prev;
+    node.next = next;
+    return node;
+  }
+
+  public toString() {
+    return `LruNode { key: ${this.value.getKey()}, prevKey: ${
+      this.prev?.value.getKey() ?? "null"
+    } nextKey: ${this.next?.value.getKey() ?? "null"} }`;
+  }
 }
 
 class LruCache<T extends GetKey> {
@@ -20,12 +37,26 @@ class LruCache<T extends GetKey> {
   private map: Map<string, LruNode<T>>;
   private head: LruNode<T> | null;
   private tail: LruNode<T> | null;
+  private headKey: string | null;
+  private tailKey: string | null;
+
+  private setHead(key: string, node: LruNode<T>) {
+    this.headKey = key;
+    this.head = node;
+  }
+
+  private setTail(key: string, node: LruNode<T>) {
+    this.tailKey = key;
+    this.tail = node;
+  }
 
   public constructor(maxSize: number) {
     this.maxSize = maxSize;
     this.map = new Map<string, LruNode<T>>();
     this.head = null;
     this.tail = null;
+    this.headKey = null;
+    this.tailKey = null;
   }
 
   public add(value: T): void {
@@ -33,8 +64,8 @@ class LruCache<T extends GetKey> {
     const key = value.getKey();
     // Here we initialize.
     if (!this.head) {
-      this.head = node;
-      this.tail = node;
+      this.setHead(key, node);
+      this.setTail(key, node);
       this.map.set(key, node);
       return;
     }
@@ -47,8 +78,8 @@ class LruCache<T extends GetKey> {
       nextTail.prev = node;
       node.next = nextTail;
 
-      this.map.delete(this.tail!.value.getKey()!);
-      this.tail = node;
+      this.map.delete(this.tailKey!);
+      this.setTail(key, node);
       this.map.set(key, node);
       return;
     }
@@ -56,7 +87,7 @@ class LruCache<T extends GetKey> {
     // Available slot after the current Tail, so append.
     this.tail!.prev = node;
     node.next = this.tail;
-    this.tail = node;
+    this.setTail(key, node);
     this.map.set(key, node);
 
     return;
@@ -72,18 +103,18 @@ class LruCache<T extends GetKey> {
     }
 
     // If we're getting the head, don't reorder.
-    if (key === this.head?.value.getKey()) {
+    if (key === this.headKey) {
       return node.value;
     }
 
     // If we're returning the tail, we move it up.
-    if (key === this.tail?.value.getKey()) {
+    if (key === this.tailKey) {
       const tailNext = this.tail!.next!;
       tailNext.prev = null; // Remove reference in front of tail for current tail.
       this.tail!.prev = this.head; // Tail references head before it.
       this.head!.next = this.tail; // Head references tail as next.
-      this.head = this.tail; // Set head key and value.
-      this.tail = tailNext; // Set tail key and value.
+      this.setHead(key, this.tail!); // Set head key and value.
+      this.setTail(tailNext.value.getKey(), tailNext); // Set tail key and value.
       return this.head.value;
     }
 
@@ -96,9 +127,37 @@ class LruCache<T extends GetKey> {
 
     this.head.next = node;
     node.prev = this.head;
-    this.head = node;
+    this.setHead(key, node);
 
     return node.value;
+  }
+
+  public __debug(context?: string) {
+    if (context) {
+      console.log(context);
+    }
+
+    console.log(
+      `Head: ${this.head?.toString()} | Tail: ${this.tail?.toString()}`
+    );
+
+    console.log("Linked list:");
+    let cycles = 0;
+    let n = this.head;
+    while (n !== null) {
+      console.log(`Cycle: ${cycles}`);
+      console.log(n.toString());
+      if (cycles > this.maxSize) {
+        console.error("Infinite loop detected, structure malformation.");
+        break;
+      }
+      n = n.prev;
+      cycles++;
+    }
+    console.log("Map:");
+    for (const [k, v] of this.map.entries()) {
+      console.log(`Key: ${k}, value: ${v}`);
+    }
   }
 }
 
@@ -112,12 +171,17 @@ type GetKeyNumber = GetKey & {
   cache.add({ value: 2, getKey: () => "kB" });
   cache.add({ value: 3, getKey: () => "kC" });
   cache.add({ value: 4, getKey: () => "kD" });
+  cache.__debug();
 
   console.log("overflowing, evicting tail");
   // Over capacity
   cache.add({ value: 5, getKey: () => "kE" });
+  cache.__debug();
   cache.add({ value: 6, getKey: () => "kF" });
+  cache.__debug();
 
   console.log(`getting kF 1 time: ${cache.get("kF")}`);
   console.log(`getting kC 2 times: ${cache.get("kC")}-${cache.get("kC")}`);
+
+  cache.__debug();
 })();
