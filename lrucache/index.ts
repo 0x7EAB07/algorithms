@@ -20,26 +20,12 @@ class LruCache<T extends GetKey> {
   private map: Map<string, LruNode<T>>;
   private head: LruNode<T> | null;
   private tail: LruNode<T> | null;
-  private headKey: string | null;
-  private tailKey: string | null;
-
-  private setHead(key: string, node: LruNode<T>) {
-    this.headKey = key;
-    this.head = node;
-  }
-
-  private setTail(key: string, node: LruNode<T>) {
-    this.tailKey = key;
-    this.tail = node;
-  }
 
   public constructor(maxSize: number) {
     this.maxSize = maxSize;
     this.map = new Map<string, LruNode<T>>();
     this.head = null;
     this.tail = null;
-    this.headKey = null;
-    this.tailKey = null;
   }
 
   public add(value: T): void {
@@ -47,8 +33,8 @@ class LruCache<T extends GetKey> {
     const key = value.getKey();
     // Here we initialize.
     if (!this.head) {
-      this.setHead(key, node);
-      this.setTail(key, node);
+      this.head = node;
+      this.tail = node;
       this.map.set(key, node);
       return;
     }
@@ -61,8 +47,8 @@ class LruCache<T extends GetKey> {
       nextTail.prev = node;
       node.next = nextTail;
 
-      this.map.delete(this.tailKey!);
-      this.setTail(key, node);
+      this.map.delete(this.tail!.value.getKey()!);
+      this.tail = node;
       this.map.set(key, node);
       return;
     }
@@ -70,7 +56,7 @@ class LruCache<T extends GetKey> {
     // Available slot after the current Tail, so append.
     this.tail!.prev = node;
     node.next = this.tail;
-    this.setTail(key, node);
+    this.tail = node;
     this.map.set(key, node);
 
     return;
@@ -86,18 +72,18 @@ class LruCache<T extends GetKey> {
     }
 
     // If we're getting the head, don't reorder.
-    if (key === this.headKey) {
+    if (key === this.head?.value.getKey()) {
       return node.value;
     }
 
     // If we're returning the tail, we move it up.
-    if (key === this.tailKey) {
+    if (key === this.tail?.value.getKey()) {
       const tailNext = this.tail!.next!;
       tailNext.prev = null; // Remove reference in front of tail for current tail.
       this.tail!.prev = this.head; // Tail references head before it.
       this.head!.next = this.tail; // Head references tail as next.
-      this.setHead(key, this.tail!); // Set head key and value.
-      this.setTail(tailNext.value.getKey(), tailNext); // Set tail key and value.
+      this.head = this.tail; // Set head key and value.
+      this.tail = tailNext; // Set tail key and value.
       return this.head.value;
     }
 
@@ -110,7 +96,7 @@ class LruCache<T extends GetKey> {
 
     this.head.next = node;
     node.prev = this.head;
-    this.setHead(key, node);
+    this.head = node;
 
     return node.value;
   }
