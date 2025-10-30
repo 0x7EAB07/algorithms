@@ -12,23 +12,6 @@ class LruNode<T extends GetKey> {
     this.next = null;
     this.prev = null;
   }
-
-  public static withPrevAndNext<T extends GetKey>(
-    value: T,
-    prev: LruNode<T>,
-    next: LruNode<T>
-  ) {
-    const node = new LruNode<T>(value);
-    node.prev = prev;
-    node.next = next;
-    return node;
-  }
-
-  public toString() {
-    return `LruNode { key: ${this.value.getKey()}, prevKey: ${
-      this.prev?.value.getKey() ?? "null"
-    } nextKey: ${this.next?.value.getKey() ?? "null"} }`;
-  }
 }
 
 class LruCache<T extends GetKey> {
@@ -131,34 +114,6 @@ class LruCache<T extends GetKey> {
 
     return node.value;
   }
-
-  public __debug(context?: string) {
-    if (context) {
-      console.log(context);
-    }
-
-    console.log(
-      `Head: ${this.head?.toString()} | Tail: ${this.tail?.toString()}`
-    );
-
-    console.log("Linked list:");
-    let cycles = 0;
-    let n = this.head;
-    while (n !== null) {
-      console.log(`Cycle: ${cycles}`);
-      console.log(n.toString());
-      if (cycles > this.maxSize) {
-        console.warn("Infinite loop detected, structure malformation.");
-        break;
-      }
-      n = n.prev;
-      cycles++;
-    }
-    console.log("Map:");
-    for (const [k, v] of this.map.entries()) {
-      console.log(`Key: ${k}, value: ${v}`);
-    }
-  }
 }
 
 type GetKeyNumber = GetKey & {
@@ -171,17 +126,12 @@ type GetKeyNumber = GetKey & {
   cache.add({ value: 2, getKey: () => "kB" });
   cache.add({ value: 3, getKey: () => "kC" });
   cache.add({ value: 4, getKey: () => "kD" });
-  cache.__debug();
 
   console.log("overflowing, evicting tail");
   // Over capacity
   cache.add({ value: 5, getKey: () => "kE" });
-  cache.__debug();
   cache.add({ value: 6, getKey: () => "kF" });
-  cache.__debug();
 
   console.log(`getting kF 1 time: ${cache.get("kF")}`);
   console.log(`getting kC 2 times: ${cache.get("kC")}-${cache.get("kC")}`);
-
-  cache.__debug();
 })();
